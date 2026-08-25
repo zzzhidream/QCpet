@@ -90,7 +90,16 @@ Copy-Item -LiteralPath (Join-Path $projectRoot "LICENSE") -Destination $stagePat
 
 Compress-Archive -Path (Join-Path $stagePath "*") -DestinationPath $zipPath -CompressionLevel Optimal
 
-$hash = (Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash.ToLowerInvariant()
+$sha256 = [System.Security.Cryptography.SHA256]::Create()
+$zipStream = [System.IO.File]::OpenRead($zipPath)
+try {
+    $hashBytes = $sha256.ComputeHash($zipStream)
+}
+finally {
+    $zipStream.Dispose()
+    $sha256.Dispose()
+}
+$hash = [System.BitConverter]::ToString($hashBytes).Replace("-", "").ToLowerInvariant()
 Write-Host "[OK] Portable directory: $stagePath"
 Write-Host "[OK] Release archive: $zipPath"
 Write-Host "[OK] SHA256: $hash"
