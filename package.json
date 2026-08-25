@@ -1,0 +1,26 @@
+{
+  "name": "qcpet",
+  "private": true,
+  "version": "0.2.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "package:portable": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-portable.ps1",
+    "preview": "vite preview",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.5.0",
+    "@tauri-apps/plugin-autostart": "^2.2.1",
+    "@tauri-apps/plugin-notification": "^2.3.3",
+    "ag-psd": "^31.0.2",
+    "pixi-live2d-display": "^0.4.0",
+    "pixi.js": "^6.5.10"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.5.0",
+    "typescript": "^5.7.2",
+    "vite": "^6.1.0"
+  }
+}
