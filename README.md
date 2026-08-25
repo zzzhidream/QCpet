@@ -5,7 +5,7 @@
 <h1 align="center">QCpet</h1>
 
 QCpet 是一个面向 Windows 的开源 PSD 桌宠，支持 PSD 自动装配、桌面交互和可选的文字 AI 对话。  
-它是基于petra修改的，进行了增删优化，以自用为主，所以表现可能不如petra好。原应用在：[https://github.com/Wumiu/Petra]。在这里感谢Wumiu大佬。
+它是基于petra修改的，进行了增删优化，以自用为主，所以表现可能不如petra好。原应用在：[https://github.com/Wumiu/Petra] 在这里感谢Wumiu大佬。
 
 ## 下载与运行
 
@@ -29,7 +29,7 @@ QCpet 是一个面向 Windows 的开源 PSD 桌宠，支持 PSD 自动装配、�
 ## 怎么添加喜欢的模型？
 
 - 1.叫ai生成一个正面q版立绘
-- 2.把这个立绘丢到：[https://modelscope.cn/studios/ljsabc/See-Through] ———— 一个自动拆层工具，免费的 ———— 得到psd文件
+- 2.把这个立绘丢到：[https://modelscope.cn/studios/ljsabc/See-Through] —— 一个自动拆层工具，免费的，建议拉满分辨率，种子随便 —— 得到psd文件
 - 3.然后直接把这个psd文件丢到QCpet的模型设置里就好啦！
 
 
