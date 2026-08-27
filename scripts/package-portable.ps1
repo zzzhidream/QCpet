@@ -26,21 +26,31 @@ function Assert-DirectChild([string]$Path, [string]$Parent) {
 Assert-DirectChild -Path $stagePath -Parent $releaseRoot
 Assert-DirectChild -Path $zipPath -Parent $releaseRoot
 
-if (-not $SkipBuild) {
-    if (Get-Process -Name "qcpet" -ErrorAction SilentlyContinue) {
-        throw "QCpet is running. Exit it from the context menu before building."
+Push-Location $projectRoot
+try {
+    & npm.cmd run verify:release
+    if ($LASTEXITCODE -ne 0) {
+        throw "Release verification failed with exit code $LASTEXITCODE"
     }
 
-    Push-Location $projectRoot
-    try {
+    & npm.cmd run verify:models
+    if ($LASTEXITCODE -ne 0) {
+        throw "Bundled PSD verification failed with exit code $LASTEXITCODE"
+    }
+
+    if (-not $SkipBuild) {
+        if (Get-Process -Name "qcpet" -ErrorAction SilentlyContinue) {
+            throw "QCpet is running. Exit it from the context menu before building."
+        }
+
         & npm.cmd run tauri build -- --no-bundle
         if ($LASTEXITCODE -ne 0) {
             throw "Tauri release build failed with exit code $LASTEXITCODE"
         }
     }
-    finally {
-        Pop-Location
-    }
+}
+finally {
+    Pop-Location
 }
 
 if (-not (Test-Path -LiteralPath $builtExe -PathType Leaf)) {
@@ -90,6 +100,27 @@ Copy-Item -LiteralPath (Join-Path $projectRoot "LICENSE") -Destination $stagePat
 
 Compress-Archive -Path (Join-Path $stagePath "*") -DestinationPath $zipPath -CompressionLevel Optimal
 
+$verifyPath = Join-Path ([System.IO.Path]::GetTempPath()) ("qcpet-release-check-" + [System.Guid]::NewGuid().ToString("N"))
+New-Item -ItemType Directory -Path $verifyPath | Out-Null
+try {
+    Expand-Archive -LiteralPath $zipPath -DestinationPath $verifyPath
+    $packedExe = Join-Path $verifyPath "QCpet.exe"
+    if (-not (Test-Path -LiteralPath $packedExe -PathType Leaf) -or (Get-Item -LiteralPath $packedExe).Length -lt 1MB) {
+        throw "Portable archive does not contain a valid QCpet.exe"
+    }
+    foreach ($requiredFile in @("manifest.json") + $modelFiles) {
+        $packedFile = Join-Path (Join-Path $verifyPath "models") ([string]$requiredFile)
+        if (-not (Test-Path -LiteralPath $packedFile -PathType Leaf)) {
+            throw "Portable archive is missing models/$requiredFile"
+        }
+    }
+}
+finally {
+    if ([System.IO.Directory]::Exists($verifyPath)) {
+        [System.IO.Directory]::Delete($verifyPath, $true)
+    }
+}
+
 $sha256 = [System.Security.Cryptography.SHA256]::Create()
 $zipStream = [System.IO.File]::OpenRead($zipPath)
 try {
@@ -102,4 +133,5 @@ finally {
 $hash = [System.BitConverter]::ToString($hashBytes).Replace("-", "").ToLowerInvariant()
 Write-Host "[OK] Portable directory: $stagePath"
 Write-Host "[OK] Release archive: $zipPath"
+Write-Host "[OK] Portable archive contents verified"
 Write-Host "[OK] SHA256: $hash"

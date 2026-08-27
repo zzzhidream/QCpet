@@ -6,10 +6,3 @@ declare module "*/anime2dr/rigger" {
   };
   export default Rigger;
 }
-
-declare module "*/anime2dr/genericparts" {
-  const GenericParts: {
-    get(k: "eyeL" | "eyeR" | "mouth"): { width: number; height: number; data: Uint8ClampedArray } | null;
-  };
-  export default GenericParts;
-}

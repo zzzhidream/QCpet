@@ -34,6 +34,18 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Verify release metadata and resources
+        run: npm run verify:release
+
+      - name: Verify bundled PSD models
+        run: npm run verify:models
+
+      - name: Test frontend
+        run: npm run build
+
+      - name: Test Rust backend
+        run: cargo test --locked --manifest-path src-tauri/Cargo.toml
+
       - name: Build portable package
         run: npm run package:portable
 

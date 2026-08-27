@@ -1,15 +1,13 @@
 // Anime2.5DRig 运行时抽离（MIT）
 // 来源: https://github.com/852wa/Anime2.5DRig (index.html 内嵌渲染核心)
-// 保留: GL 网格渲染 / 顶点变形 / 发丝弹簧物理 / 闭眼闭口渐变 / 虹膜模板裁剪
+// 保留: GL 网格渲染 / 顶点变形 / 发丝弹簧物理 / 闭眼渐变 / 虹膜模板裁剪
 // 剥离: UI 面板 / 摄像头 / 麦克风 / README / 背景切换
 
 import { readPsd } from "ag-psd";
 import { clamp } from "../../utils/math";
 
-// vendor 的 rigger/genericparts 是 UMD 格式（无 ESM export），
-// 通过 index.html 的 <script> 标签在应用代码前加载（副作用 import 会被 Vite 生产构建 tree-shake 掉）。
-// Anime2.5DRig UMD 格式，通过 index.html 的 <script> 标签在应用代码前加载。
-// 加载后自动挂到 window.Rigger / window.GenericParts。
+// Anime2.5DRig rigger 是 UMD 格式，通过 index.html 的 <script> 标签在应用代码前加载。
+// 加载后自动挂到 window.Rigger。
 // 注意：不能在模块顶层直接获取（Vite dev 模块加载时序问题），
 // 必须在 load() 调用时延迟获取，确保 <script> 已执行。
 
@@ -18,19 +16,10 @@ interface RiggerApi {
   baseName(n: string): string;
   cleanPsdLayers(psd: any): { noisy: number; layers: number };
 }
-interface GenericPartsApi {
-  get(k: "eyeL" | "eyeR" | "mouth"): { width: number; height: number; data: Uint8ClampedArray } | null;
-}
-
 function getRigger(): RiggerApi {
   const r = (window as unknown as { Rigger: RiggerApi }).Rigger;
   if (!r) throw new Error("Rigger 未加载，请检查 index.html 是否正确引入 vendor/anime2dr/rigger.js");
   return r;
-}
-function getGenericParts(): GenericPartsApi {
-  const g = (window as unknown as { GenericParts: GenericPartsApi }).GenericParts;
-  if (!g) throw new Error("GenericParts 未加载，请检查 index.html 是否正确引入 vendor/anime2dr/genericparts.js");
-  return g;
 }
 
 export interface RigParams {
@@ -45,11 +34,6 @@ export interface RigParams {
   browAngL: number;
   browAngR: number;
   browAngSym: number;
-  mouthOpen: number;
-  mouthForm: number;
-  mouthCY: number;
-  mouthCAng: number;
-  mouthScale: number;
   eyeCY: number;
   eyeCAng: number;
   eyeScaleL: number;
@@ -75,17 +59,15 @@ export interface RigParams {
   blushScaleX: number;
   blushScaleY: number;
   eyeEase: number;
-  mouthEase: number;
 }
 
 const DEFAULTS: RigParams = {
   angleX: 0, angleY: 0, angleZ: 0, eyeOpenL: 1, eyeOpenR: 1, eyeX: 0, eyeY: 0,
-  brow: 0, browAngL: 0, browAngR: 0, browAngSym: 0, mouthOpen: 0, mouthForm: 0,
-  mouthCY: 0, mouthCAng: 0, mouthScale: 1, eyeCY: 0, eyeCAng: 0,
+  brow: 0, browAngL: 0, browAngR: 0, browAngSym: 0, eyeCY: 0, eyeCAng: 0,
   eyeScaleL: 1, eyeScaleR: 1, body: 0, bodySwing: 0, armY: 0, armPos: 0, bust: 2.5, bustY: 1,
   bangL: 0, bangC: 0, bangR: 0, physAmp: 2, soft: 2, fhAmp: 2, fhSoft: 0.4, hairMotionScale: 1,
   irisScale: 1, blush: 0, blushX: 0, blushY: 0, blushScaleX: 1, blushScaleY: 1,
-  eyeEase: 0.3, mouthEase: 0.45,
+  eyeEase: 0.3,
 };
 
 interface Layer {
@@ -121,6 +103,34 @@ function sh(gl: WebGLRenderingContext, type: number, src: string): WebGLShader {
 }
 
 function smooth(t: number) { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); }
+
+/** 无闭眼差分层时使用的中性闭眼线：左右共用同一几何，避免旧素材的曲率和倾斜不对称。 */
+function makeGenericClosedEye(): { width: number; height: number; data: Uint8ClampedArray } {
+  const width = 128;
+  const height = 16;
+  const data = new Uint8ClampedArray(width * height * 4);
+  const ease = (value: number) => {
+    const t = clamp(value, 0, 1);
+    return t * t * (3 - 2 * t);
+  };
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const u = x / (width - 1);
+      const curveY = 7.2 + 1.6 * Math.pow((u - 0.5) * 2, 2);
+      const taper = ease(u / 0.09) * ease((1 - u) / 0.09);
+      const halfWidth = (1.45 + 0.55 * Math.sin(Math.PI * u)) * taper;
+      const coverage = clamp(halfWidth + 0.75 - Math.abs(y - curveY), 0, 1);
+      const i = (y * width + x) * 4;
+      data[i] = 255;
+      data[i + 1] = 255;
+      data[i + 2] = 255;
+      data[i + 3] = Math.round(255 * coverage * taper);
+    }
+  }
+  return { width, height, data };
+}
+
+const GENERIC_CLOSED_EYE = makeGenericClosedEye();
 
 export class PsdRuntime {
   readonly canvas: HTMLCanvasElement;
@@ -236,12 +246,10 @@ export class PsdRuntime {
 
     const psd = readPsd(u8, { useImageData: true, skipThumbnail: true }) as any;
     const Rigger = getRigger();
-    const GenericParts = getGenericParts();
     Rigger.cleanPsdLayers(psd);
     const g = {
-      eyeL: GenericParts.get("eyeL"),
-      eyeR: GenericParts.get("eyeR"),
-      mouth: GenericParts.get("mouth"),
+      eyeL: GENERIC_CLOSED_EYE,
+      eyeR: GENERIC_CLOSED_EYE,
     };
     const rig = Rigger.buildRig(psd, { generic: g });
     this._warnings = rig.warnings ?? [];
@@ -612,8 +620,6 @@ export class PsdRuntime {
       const v = L.side === "L" ? e.eyeOpenL : e.eyeOpenR;
       return 1 - smooth((v - (0.1 + e.eyeEase * 0.45)) / 0.15);
     }
-    if (L.fade === "mouthOpen") return smooth((e.mouthOpen - (0.05 + e.mouthEase * 0.35)) / 0.12);
-    if (L.fade === "mouthClose") return 1 - smooth((e.mouthOpen - (0.05 + e.mouthEase * 0.35)) / 0.12);
     return 1;
   }
 
@@ -627,8 +633,6 @@ export class PsdRuntime {
     const eyeSide = L.side;
     const EA = eyeSide === "L" ? A.eyeL : eyeSide === "R" ? A.eyeR : null;
     const vOpen = eyeSide === "L" ? e.eyeOpenL : e.eyeOpenR;
-    const mo = e.mouthOpen;
-    const mHalfW = (A.mouth.x1 - A.mouth.x0) / 2;
     const nS = L.strands ? L.strands.length : 0;
     const bcx = L.x + L.w / 2, bcy = L.y + L.h / 2;
     const isFH = bn === "front hair";
@@ -643,10 +647,6 @@ export class PsdRuntime {
           const cxE = (EA.x0 + EA.x1) / 2, cyE = (EA.y0 + EA.y1) / 2;
           x = cxE + (x - cxE) * sE; y = cyE + (y - cyE) * sE;
         }
-      }
-      if (bn === "mouth_open" || bn === "mouth_close") {
-        const sM = e.mouthScale;
-        if (sM !== 1) { x = A.mouth.cx + (x - A.mouth.cx) * sM; y = A.mouth.cy + (y - A.mouth.cy) * sM; }
       }
       if (L.fade === "eyeOpen" && EA) {
         if (bn === "irides") {
@@ -676,23 +676,6 @@ export class PsdRuntime {
           x = bcx + rx * ct - ry * st; y = bcy + rx * st + ry * ct;
         }
       }
-      if (L.fade === "mouthOpen") {
-        y = A.mouth.y0 + (y - A.mouth.y0) * (0.5 + 0.5 * mo);
-        const q = Math.pow(Math.abs(x - A.mouth.cx) / (mHalfW + 4), 1.5);
-        y -= e.mouthForm * 6 * this.FS * (q - 0.35);
-      }
-      if (L.fade === "mouthClose") {
-        y += e.mouthCY * 14 * this.FS;
-        const thM = e.mouthCAng * 0.35;
-        if (thM) {
-          const ct = Math.cos(thM), st = Math.sin(thM), rx = x - A.mouth.cx, ry = y - A.mouth.cy;
-          x = A.mouth.cx + rx * ct - ry * st; y = A.mouth.cy + rx * st + ry * ct;
-        }
-      }
-      if (bn === "face" && y > A.mouth.cy) {
-        y += mo * 6 * this.FS * smooth((y - A.mouth.cy) / (A.face.y1 - A.mouth.cy));
-      }
-
       let hw = isHead ? 1 : (L.group === "body" ? 0.16 : 0);
       if (bn === "neck") hw = 0.55 * smooth((A.neckBottom - y) / Math.max(1, A.neckBottom - A.neckTop));
       if (hw > 0) {

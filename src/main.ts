@@ -316,7 +316,7 @@ function resetBoundsOnModelSwitch() {
   if (view) (view as any).setBoundsPadding?.(settings.boundsPadding);
 }
 
-async function makePsdView(bytes: Uint8Array, _name: string): Promise<Rigged2DView> {
+async function makePsdView(bytes: Uint8Array): Promise<Rigged2DView> {
   const v = await Rigged2DView.create(bytes);
   if (v.warnings.length > 0) console.warn("[PSD 自动装配提示]", ...v.warnings);
   return v;
@@ -335,7 +335,7 @@ async function createView(): Promise<PetView> {
     try {
       const bytes = await invoke<ArrayBuffer | Uint8Array | number[]>("read_psd", { name: imported });
       currentModel = { type: "import", name: imported };
-      return await makePsdView(asUint8Array(bytes), imported);
+      return await makePsdView(asUint8Array(bytes));
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error(`[模型切换] 导入 PSD "${imported}" 加载失败：`, err);
@@ -357,7 +357,7 @@ async function createView(): Promise<PetView> {
         const bytes = await invoke<ArrayBuffer | Uint8Array | number[]>("read_builtin_psd", { name: file });
         currentModel = { type: "manifest", name: file };
         resetBoundsOnModelSwitch();
-        return await makePsdView(asUint8Array(bytes), file);
+        return await makePsdView(asUint8Array(bytes));
       } catch (err) {
         console.error(`内置模型 ${file} 加载失败:`, err);
       }
@@ -385,8 +385,8 @@ async function createView(): Promise<PetView> {
   } catch (err) {
     console.error(`live2d 加载失败: ${err}`);
   }
-  // 默认模型（deepseek.psd）加载失败：不允许回退占位，直接抛错
-  throw new Error("模型加载失败（manifest 未配置或 deepseek.psd 缺失）");
+  // 默认内置 PSD 加载失败：不允许回退占位，直接抛错
+  throw new Error("模型加载失败（manifest 未配置或默认内置 PSD 缺失）");
 }
 
 async function importPsdBytes(name: string, bytes: Uint8Array) {
@@ -722,8 +722,6 @@ async function boot() {
     driver.bass = analyzer.bass;
     driver.mid = analyzer.mid;
     driver.treble = analyzer.treble;
-    driver.beat = analyzer.beat;
-    driver.bpm = analyzer.bpm;
     driver.bob = engine.bob;
     driver.vx = engine.vx;
     driver.facingUser = isAssistantOpen();

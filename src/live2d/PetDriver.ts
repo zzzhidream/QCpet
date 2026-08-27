@@ -4,8 +4,6 @@ export interface PetDriver {
   bass: number; // 0..1 低频能量
   mid: number; // 0..1 中频能量
   treble: number; // 0..1 高频能量
-  beat: number; // 0..1 节拍脉冲（衰减）
-  bpm: number; // 检测到的 BPM（0=无音乐）
   bob: number; // 0..1 运动幅度（移动时抖动）
   vx: number; // -1..1 横向速度（朝左为负）
   cursorDx: number; // -1..1 鼠标相对窗口中心的横向偏移
@@ -48,8 +46,6 @@ export function idleDriver(): PetDriver {
     bass: 0,
     mid: 0,
     treble: 0,
-    beat: 0,
-    bpm: 0,
     bob: 0,
     vx: 0,
     cursorDx: 0,

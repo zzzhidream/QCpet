@@ -13,8 +13,6 @@ function smoothStep(value: number): number {
 /** 表情目标参数（在音乐驱动基础上叠加偏移） */
 interface Expression {
   brow: number; // -1..1 眉毛
-  mouthOpen: number; // 0..1 嘴开
-  mouthForm: number; // -1..1 嘴形（+笑 -撇嘴）
   eyeX: number; // 视线横
   eyeY: number; // 视线纵
   closeL: number; // 0..1 左眼闭合
@@ -24,16 +22,16 @@ interface Expression {
 }
 
 const EXPRESSIONS: Expression[] = [
-  { brow: 0.35, mouthOpen: 0.18, mouthForm: 0.9, eyeX: 0, eyeY: 0, closeL: 0.05, closeR: 0.05, irisScale: 0, tilt: 0 }, // 微笑
-  { brow: 1, mouthOpen: 0.65, mouthForm: -0.1, eyeX: 0, eyeY: 0.1, closeL: 0, closeR: 0, irisScale: -0.2, tilt: 0 }, // 惊讶
-  { brow: 0.3, mouthOpen: 0, mouthForm: 0.45, eyeX: 0, eyeY: 0, closeL: 0.62, closeR: 0.62, irisScale: 0, tilt: 0 }, // 眯眯眼
-  { brow: -0.45, mouthOpen: 0.15, mouthForm: -0.3, eyeX: 0, eyeY: -0.25, closeL: 0.15, closeR: 0.15, irisScale: 0, tilt: 0.06 }, // 委屈
-  { brow: -0.8, mouthOpen: 0.05, mouthForm: -0.55, eyeX: 0, eyeY: 0, closeL: 0.08, closeR: 0.08, irisScale: 0, tilt: -0.05 }, // 生气
-  { brow: 0.55, mouthOpen: 0.12, mouthForm: 0.6, eyeX: 0.35, eyeY: -0.15, closeL: 0.45, closeR: 0.45, irisScale: 0, tilt: 0.1 }, // 害羞
-  { brow: 0.25, mouthOpen: 0.35, mouthForm: 0.7, eyeX: 0, eyeY: 0, closeL: 1, closeR: 0, irisScale: 0, tilt: 0.04 }, // 左眨眼
-  { brow: 0.25, mouthOpen: 0.35, mouthForm: 0.7, eyeX: 0, eyeY: 0, closeL: 0, closeR: 1, irisScale: 0, tilt: -0.04 }, // 右眨眼
-  { brow: 0.2, mouthOpen: 0.85, mouthForm: -0.35, eyeX: 0, eyeY: 0.15, closeL: 0.12, closeR: 0.12, irisScale: 0.05, tilt: 0.03 }, // 吐舌/哈欠
-  { brow: 0.6, mouthOpen: 0.5, mouthForm: -0.15, eyeX: -0.3, eyeY: 0, closeL: 0, closeR: 0, irisScale: 0, tilt: 0.08 }, // 好奇
+  { brow: 0.35, eyeX: 0, eyeY: 0, closeL: 0.05, closeR: 0.05, irisScale: 0, tilt: 0 }, // 微笑
+  { brow: 1, eyeX: 0, eyeY: 0.1, closeL: 0, closeR: 0, irisScale: -0.2, tilt: 0 }, // 惊讶
+  { brow: 0.3, eyeX: 0, eyeY: 0, closeL: 0.62, closeR: 0.62, irisScale: 0, tilt: 0 }, // 眯眯眼
+  { brow: -0.45, eyeX: 0, eyeY: -0.25, closeL: 0.15, closeR: 0.15, irisScale: 0, tilt: 0.06 }, // 委屈
+  { brow: -0.8, eyeX: 0, eyeY: 0, closeL: 0.08, closeR: 0.08, irisScale: 0, tilt: -0.05 }, // 生气
+  { brow: 0.55, eyeX: 0.35, eyeY: -0.15, closeL: 0.45, closeR: 0.45, irisScale: 0, tilt: 0.1 }, // 害羞
+  { brow: 0.25, eyeX: 0, eyeY: 0, closeL: 1, closeR: 0, irisScale: 0, tilt: 0.04 }, // 左眨眼
+  { brow: 0.25, eyeX: 0, eyeY: 0, closeL: 0, closeR: 1, irisScale: 0, tilt: -0.04 }, // 右眨眼
+  { brow: 0.2, eyeX: 0, eyeY: 0.15, closeL: 0.12, closeR: 0.12, irisScale: 0.05, tilt: 0.03 }, // 惊奇
+  { brow: 0.6, eyeX: -0.3, eyeY: 0, closeL: 0, closeR: 0, irisScale: 0, tilt: 0.08 }, // 好奇
 ];
 
 function pickExpression(rng: () => number): Expression {
@@ -48,7 +46,6 @@ export class Rigged2DView implements PetView {
   readonly canvas: HTMLCanvasElement;
   private runtime: PsdRuntime;
   private gobblePulse = 0;
-  private clickPulse = 0;
   private scalePulse = 0;
   private swayEnabled = true;
   private displayW = 300; // 当前显示边长（窗口跟随缩放，setScale 更新）
@@ -126,7 +123,6 @@ export class Rigged2DView implements PetView {
   update(d: PetDriver, dt: number) {
     const sway = this.swayEnabled && !this.action ? 1 : 0;
     this.gobblePulse = Math.max(0, this.gobblePulse - dt * 2.2);
-    this.clickPulse = Math.max(0, this.clickPulse - dt * 6);
     this.scalePulse = Math.max(0, this.scalePulse - dt * 5);
 
     // ---- 表情节奏：间隔随活动因子拉长，播放 1.6~2.4 秒（正弦包络淡入淡出）。
@@ -289,8 +285,6 @@ export class Rigged2DView implements PetView {
     const emotionEyeY = avoidGazeSum > 0.0001
       ? (this.shyGaze.y * shyW + disgustEyeY * disgustW) / avoidGazeSum
       : neutralEyeY;
-    const neutralMouthOpen = clamp(d.mid * 0.9 * sway + d.beat * 0.5 * sway + this.gobblePulse + this.clickPulse * 0.5 + e.mouthOpen * ew + exc * 0.12, 0, 1.3);
-    const neutralMouthForm = clamp(d.mid * 0.4 * sway + e.mouthForm * ew, -1, 1);
     const neutralBrow = clamp(d.treble * 0.5 * sway - d.bass * 0.3 + e.brow * ew, -1, 1);
     const neutralAngleZ = clamp(Math.sin(d.breathing) * 0.02 + e.tilt * ew, -0.2, 0.2);
 
@@ -308,9 +302,6 @@ export class Rigged2DView implements PetView {
       // 仅保留移动时必要的轻微身体晃动，不再驱动四肢或整身舞蹈。
       body: clamp(d.vx * 0.12, -0.2, 0.2),
       angleZ: blendEmotion(neutralAngleZ, 0.07, -0.05, 0),
-      // 音乐 → 嘴型（中频 + 节拍 + 吞咽/点击脉冲），表情叠加，兴奋时微张嘴
-      mouthOpen: blendEmotion(neutralMouthOpen, 0.05, 0.02, 0.78),
-      mouthForm: blendEmotion(neutralMouthForm, 0.35, -0.8, -0.1),
       // 眉毛：音乐驱动 + 表情偏移
       brow: blendEmotion(neutralBrow, 0.45, -0.92, 1),
       browAngSym: blendEmotion(0, -0.08, 0.44, 0),
@@ -413,7 +404,6 @@ export class Rigged2DView implements PetView {
   }
 
   playClick() {
-    this.clickPulse = 1;
     this.scalePulse = 1;
   }
 

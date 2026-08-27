@@ -35,7 +35,8 @@ Thumbs.db
 # Runtime data
 public/models/*.psd
 !public/models/deepseek.psd
-!public/models/mika.psd
+!public/models/chocola.psd
+!public/models/vanilla.psd
 
 # 打包产物
 release/

@@ -1,11 +1,14 @@
 {
   "name": "qcpet",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:browser": "vite --port 1421 --strictPort --open /browser.html",
     "build": "tsc && vite build",
+    "verify:release": "node scripts/verify-release.mjs",
+    "verify:models": "node --expose-gc --max-old-space-size=4096 scripts/verify-psd-models.mjs",
     "package:portable": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-portable.ps1",
     "preview": "vite preview",
     "tauri": "tauri"
@@ -22,5 +25,8 @@
     "@tauri-apps/cli": "^2.5.0",
     "typescript": "^5.7.2",
     "vite": "^6.1.0"
+  },
+  "overrides": {
+    "gh-pages": "6.3.0"
   }
 }

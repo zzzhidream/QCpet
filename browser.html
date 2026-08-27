@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>QCpet PSD 浏览器验收</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="stylesheet" href="/src/browser.css" />
+    <script src="/vendor/anime2dr/rigger.js"></script>
+  </head>
+  <body>
+    <main class="viewer-shell">
+      <header class="toolbar">
+        <div>
+          <h1>QCpet PSD 验收</h1>
+          <p>直接使用正式 PSD 装配与 WebGL 渲染链路，不依赖 Rust/Tauri。</p>
+        </div>
+        <div class="controls">
+          <label>
+            内置模型
+            <select id="builtin-model" aria-label="选择内置模型"></select>
+          </label>
+          <button id="load-builtin" type="button">打开内置模型</button>
+          <label class="file-button">
+            打开本地 PSD
+            <input id="local-psd" type="file" accept=".psd,image/vnd.adobe.photoshop" />
+          </label>
+          <button id="toggle-motion" type="button">暂停动作</button>
+        </div>
+      </header>
+
+      <section class="viewer-card">
+        <div id="browser-stage" aria-label="PSD 模型预览"></div>
+        <div id="loading" class="loading">正在读取模型清单…</div>
+      </section>
+
+      <footer class="diagnostics" aria-live="polite">
+        <strong id="model-name">尚未加载模型</strong>
+        <span id="model-stats"></span>
+        <span id="model-status">等待加载</span>
+        <ul id="model-warnings"></ul>
+      </footer>
+    </main>
+    <script type="module" src="/src/browser.ts"></script>
+  </body>
+</html>

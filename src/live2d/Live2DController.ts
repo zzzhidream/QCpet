@@ -20,8 +20,6 @@ export class Live2DController implements PetView {
   private modelOffsetX = 0;
   private modelOffsetY = 0;
   private swayEnabled = true;
-  private gobble = 0;
-  private click = 0;
   private t = 0;
   private mirror = 1;
   private lastVx = 0;
@@ -95,8 +93,6 @@ export class Live2DController implements PetView {
     const m = this.model;
     if (!m) return;
     this.t += dt;
-    this.gobble = Math.max(0, this.gobble - dt * 3.2);
-    this.click = Math.max(0, this.click - dt * 6);
 
     // 模型边缘露出偏移
     this.modelOffsetX = d.modelOffsetX || 0;
@@ -160,10 +156,8 @@ export class Live2DController implements PetView {
     const k = this.exprKind;
     const ew = this.exprW;
     const eBrow = k === 1 ? 0.35 * ew : k === 2 ? 0.8 * ew : k === 4 ? -0.4 * ew : 0;
-    const eMouth = k === 2 ? 0.5 * ew : k === 1 ? 0.2 * ew : 0;
     const eEyeL = k === 5 || k === 3 ? (1 - 0.85 * ew) : 1;
     const eEyeR = k === 6 || k === 3 ? (1 - 0.85 * ew) : 1;
-    const eForm = k === 1 ? 0.8 * ew : k === 3 ? 0.4 * ew : k === 4 ? -0.4 * ew : 0;
 
     // 顶部待机倒挂（旋转 180°）→ 视线横纵都镜像
     const flip = d.idleTop ? -1 : 1;
@@ -184,24 +178,15 @@ export class Live2DController implements PetView {
     set("ParamBrowL", Math.max(-1, Math.min(1, d.treble * 0.4 * sway + eBrow)));
     set("ParamBrowR", Math.max(-1, Math.min(1, d.treble * 0.4 * sway + eBrow)));
 
-    // 嘴：中频 + 节拍 + 吞咽/点击 + 表情 + 兴奋微张嘴
-    const mouth = Math.min(
-      1.5,
-      d.mid * 1.2 * sway + d.beat * 0.6 * sway + this.gobble + this.click * 0.8 + eMouth + exc * 0.18,
-    );
-    set("ParamMouthOpenY", mouth);
-    set("ParamMouthForm", Math.max(-1, Math.min(1, 0.5 + d.mid * 0.3 + eForm)));
   }
 
   playGobble() {
     if (!this.model) return;
-    this.gobble = 1;
     this.tryMotion(["TapBody", "TapHead", "FlickHead", "Idle"]);
   }
 
   playClick() {
     if (!this.model) return;
-    this.click = 1;
     this.tryMotion(["TapBody", "FlickHead", "Idle"]);
   }
 

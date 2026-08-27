@@ -13,15 +13,46 @@
   // ---------- layer naming ----------
   function normName(n) {
     n = (n || '').normalize('NFKC').trim().toLowerCase();
-    if (n === 'eyelash_c') n = 'eye_close';       // legacy aliases
-    if (n === 'mouth_c') n = 'mouth_close';
-    if (n === 'mouth' || /^mouth[ _-]?\d+$/.test(n)) n = 'mouth_open';   // see-through raw output
-    return n;
+    var number = '';
+    var nm = n.match(/[ _-](\d+)$/);
+    if (nm) { number = '_' + nm[1]; n = n.slice(0, nm.index).trim(); }
+    var side = '';
+    if (/^(left|左)/.test(n)) { side = '_l'; n = n.replace(/^(left|左)[ _-]*/, ''); }
+    else if (/^(right|右)/.test(n)) { side = '_r'; n = n.replace(/^(right|右)[ _-]*/, ''); }
+    var sm = n.match(/[ _-](left|right|l|r)$/);
+    if (sm) { side = (sm[1] === 'left' || sm[1] === 'l') ? '_l' : '_r'; n = n.slice(0, sm.index).trim(); }
+
+    var key = n.replace(/[\s_-]+/g, '');
+    var aliases = {
+      'backhair': 'back hair', 'hairback': 'back hair', '后发': 'back hair', '後发': 'back hair',
+      '后髮': 'back hair', '後髮': 'back hair', '後ろ髪': 'back hair',
+      'fronthair': 'front hair', 'hairfront': 'front hair', 'bang': 'front hair', 'bangs': 'front hair',
+      'fringe': 'front hair', '前发': 'front hair', '前髮': 'front hair', '前髪': 'front hair',
+      '刘海': 'front hair', '瀏海': 'front hair',
+      'face': 'face', 'head': 'face', '脸': 'face', '臉': 'face', '面部': 'face', '顔': 'face',
+      'eyewhite': 'eyewhite', 'eyewhites': 'eyewhite', 'sclera': 'eyewhite', '眼白': 'eyewhite', '白目': 'eyewhite',
+      'iris': 'irides', 'irises': 'irides', 'irides': 'irides', 'pupil': 'irides', 'pupils': 'irides',
+      '瞳': 'irides', '瞳孔': 'irides', '虹膜': 'irides', '黒目': 'irides',
+      'eyelash': 'eyelash', 'eyelashes': 'eyelash', 'lash': 'eyelash', 'lashes': 'eyelash',
+      '睫毛': 'eyelash', 'まつげ': 'eyelash',
+      'eyeclose': 'eye_close', 'eyesclose': 'eye_close', 'closedeye': 'eye_close', 'closedeyes': 'eye_close',
+      'eyelashc': 'eye_close', '闭眼': 'eye_close', '閉眼': 'eye_close', '閉じ目': 'eye_close',
+      'eyebrow': 'eyebrow', 'eyebrows': 'eyebrow', 'brow': 'eyebrow', 'brows': 'eyebrow', '眉': 'eyebrow', '眉毛': 'eyebrow',
+      'mouth': 'mouth', 'mouthc': 'mouth', 'mouthopen': 'mouth', 'mouthclose': 'mouth',
+      '嘴': 'mouth', '嘴巴': 'mouth', '口': 'mouth',
+      'nose': 'nose', '鼻': 'nose', '鼻子': 'nose',
+      'ear': 'ears', 'ears': 'ears', '耳': 'ears', '耳朵': 'ears'
+    };
+    var canonical = aliases[key] || n.replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim();
+    return canonical + side + number;
   }
-  function baseName(n) { return n.replace(/_\d+$/, ''); }
+  function baseName(n) { return n.replace(/_\d+$/, '').replace(/_(l|r)$/, ''); }
 
   var SLOTS = {
+    'tail':        { depth: 0.60, group: 'body', phys: 'hair' },
     'back hair':   { depth: 0.55, group: 'head', phys: 'hair' },
+    'legwear':     { depth: 0.82, group: 'body' },
+    'footwear':    { depth: 0.84, group: 'body' },
     'bottomwear':  { depth: 0.88, group: 'body' },
     'neck':        { depth: 0.95, group: 'body' },
     'topwear':     { depth: 0.90, group: 'body' },
@@ -31,8 +62,7 @@
     'face':        { depth: 1.00, group: 'head' },
     'facedetail':  { depth: 1.02, group: 'head' },
     'headwear':    { depth: 1.20, group: 'head' },
-    'mouth_close': { depth: 1.08, group: 'head', fade: 'mouthClose' },
-    'mouth_open':  { depth: 1.08, group: 'head', fade: 'mouthOpen' },
+    'mouth':       { depth: 1.08, group: 'head' },
     'nose':        { depth: 1.15, group: 'head' },
     'eyewhite':    { depth: 1.06, group: 'head', split: true, fade: 'eyeOpen' },
     'eyebrow':     { depth: 1.14, group: 'head', split: true },
@@ -43,7 +73,7 @@
   };
 
   // ---------- image ops (full-canvas alpha as Uint8Array) ----------
-  function fullAlphaOf(layer, W, H) {
+  function fullAlphaOf(layer, W, H, opacity) {
     var a = new Uint8Array(W * H);
     var img = layer.imageData, lw = img.width, lh = img.height;
     var lx = layer.left | 0, ly = layer.top | 0, d = img.data;
@@ -52,10 +82,30 @@
       var ro = cy * W, lo = y * lw;
       for (var x = 0; x < lw; x++) {
         var cx = x + lx; if (cx < 0 || cx >= W) continue;
-        a[ro + cx] = d[(lo + x) * 4 + 3];
+        a[ro + cx] = Math.round(d[(lo + x) * 4 + 3] * (opacity == null ? 1 : opacity));
       }
     }
     return a;
+  }
+
+  function opacityOf(layer) {
+    var o = layer.opacity;
+    if (o == null) return 1;
+    return Math.max(0, Math.min(1, o > 1 ? o / 255 : o));
+  }
+
+  // Flatten visible image layers while retaining a directly hidden eye-close layer as animation input.
+  // Nested groups are common in artist PSDs; inherited visibility and opacity must be respected.
+  function collectLayerRefs(children, ancestorVisible, ancestorOpacity, out) {
+    out = out || [];
+    for (var i = 0; i < (children || []).length; i++) {
+      var layer = children[i];
+      var visible = ancestorVisible && !layer.hidden;
+      var opacity = ancestorOpacity * opacityOf(layer);
+      if (layer.imageData) out.push({ layer: layer, ancestorVisible: ancestorVisible, visible: visible, opacity: opacity });
+      if (layer.children) collectLayerRefs(layer.children, visible, opacity, out);
+    }
+    return out;
   }
 
   function labelComponents(alpha, W, H, thr) {
@@ -374,15 +424,18 @@
     opts = opts || {};
     var W = psd.width, H = psd.height;
     var warnings = [];
-    var kids = (psd.children || []).filter(function (c) { return c.imageData; });
-    if (!kids.length) throw new Error('没有找到图层（暂不支持图层组，请使用扁平图层结构）');
+    var refs = collectLayerRefs(psd.children || [], true, 1, []);
+    if (!refs.length) throw new Error('没有找到可渲染的像素图层');
 
     // full alphas, cleaned
     var entries = [];
-    for (var i = 0; i < kids.length; i++) {
-      var name = normName(kids[i].name);
-      var fa = cleanAlpha(fullAlphaOf(kids[i], W, H), W, H, 40);
-      entries.push({ name: name, layer: kids[i], alpha: fa });
+    for (var i = 0; i < refs.length; i++) {
+      var ref = refs[i], name = normName(ref.layer.name), bn0 = baseName(name);
+      if (!ref.visible && !(ref.ancestorVisible && bn0 === 'eye_close')) continue;
+      var fa = fullAlphaOf(ref.layer, W, H, ref.opacity);
+      // 嘴部也移除跨画布的低透明噪点，但使用更小阈值保留原画细线和抗锯齿。
+      fa = cleanAlpha(fa, W, H, bn0 === 'mouth' ? 12 : 40);
+      entries.push({ name: name, layer: ref.layer, alpha: fa });
     }
     var byName = {};
     entries.forEach(function (e) { byName[e.name] = e; });
@@ -409,7 +462,15 @@
         slot = { depth: 1.0, group: (c0 && c0.cy < FACE.y1) ? 'head' : 'body' };
         warnings.push('未知图层名 "' + e.name + '"，按 ' + slot.group + ' 处理');
       }
-      if (slot.split) {
+      var namedSide = e.name.match(/_(l|r)$/);
+      if (slot.split && namedSide) {
+        var side0 = namedSide[1].toUpperCase();
+        var rec0 = makePart(e.name, e.layer, e.alpha, null, W, H, slot, z, side0, null);
+        if (rec0) {
+          parts.push(rec0); z++;
+          sided[bn + '|' + namedSide[1]] = e.alpha;
+        }
+      } else if (slot.split) {
         var masks = splitSides(e.alpha, W, H, FACE.cx);
         var got = false;
         ['l', 'r'].forEach(function (s) {
@@ -456,15 +517,6 @@
     });
     if (!anchors.eyeL || !anchors.eyeR) warnings.push('眼睛锚点不完整，请检查 eyewhite/irides 图层');
 
-    var mSrc = byName['mouth_open'] || byName['mouth_close'];
-    if (mSrc) {
-      var mb = bboxOf(mSrc.alpha, W, H, 8), mc = centroidOf(mSrc.alpha, W, H);
-      anchors.mouth = { x0: mb.x0, x1: mb.x1, y0: mb.y0, y1: mb.y1, cx: mc.cx, cy: mc.cy };
-    } else {
-      warnings.push('缺少 mouth_open / mouth_close 图层');
-      anchors.mouth = { x0: FACE.cx - 20, x1: FACE.cx + 20, y0: FACE.cy + 40, y1: FACE.cy + 60, cx: FACE.cx, cy: FACE.cy + 50 };
-    }
-
     var nE = byName['neck'];
     if (nE) {
       var nb = bboxOf(nE.alpha, W, H, 8), nc = centroidOf(nE.alpha, W, H);
@@ -478,13 +530,13 @@
     anchors.faceScale = (FACE.x1 - FACE.x0) / 333.0;
     anchors.hairRootY = FACE.y0 + 60;
 
-    // ---------- synthesize missing close diffs from generic parts ----------
-    var synth = { eye: false, mouth: false };
+    // ---------- synthesize missing close diffs from the supplied neutral fallback ----------
+    var synth = { eye: false };
     var G = opts.generic;
     if (G) {
       var findPart = function (pref) { return parts.filter(function (p) { return p.name.indexOf(pref) === 0; }); };
       // eyes
-      if (G.eyeL && G.eyeR && !findPart('eye_close').length && anchors.eyeL && anchors.eyeR) {
+      if (G.eyeL && G.eyeR && anchors.eyeL && anchors.eyeR) {
         var slotEC = SLOTS['eye_close'];
         var mk = function (S, gimg, side) {
           var lash = findPart('eyelash_' + side.toLowerCase())[0] || findPart('eyebrow_' + side.toLowerCase())[0];
@@ -492,31 +544,26 @@
           return synthPart('eye_close_' + side.toLowerCase(), gimg,
             (S.x1 - S.x0) * 1.1, (S.x0 + S.x1) / 2, S.closeY, 0.55, tint, slotEC, side);
         };
-        var eL = mk(anchors.eyeL, G.eyeL, 'L');
-        var eR = mk(anchors.eyeR, G.eyeR, 'R');
-        var idxE = lastIndexWhere(parts, function (p) { return p.name.indexOf('eyelash') === 0; });
-        if (idxE < 0) idxE = lastIndexWhere(parts, function (p) { return p.name.indexOf('irides') === 0; });
-        if (idxE < 0) idxE = lastIndexWhere(parts, function (p) { return p.name === 'face'; });
-        parts.splice(idxE + 1, 0, eL, eR);
-        synth.eye = true;
-        warnings.push('缺少 eye_close，已自动生成通用闭眼效果');
-      }
-      // mouth
-      if (G.mouth && !findPart('mouth_close').length && byName['mouth_open']) {
-        var m = anchors.mouth;
-        var mc = synthPart('mouth_close', G.mouth,
-          (m.x1 - m.x0) * 1.1, m.cx, m.y0 + 0.30 * (m.y1 - m.y0), 0.5,
-          (function () { var mo = parts.filter(function (p) { return p.name === 'mouth_open'; })[0];
-                         return mo ? meanColorOfImg(mo.img, true) : null; })(),
-          SLOTS['mouth_close'], null);
-        var idxM = lastIndexWhere(parts, function (p) { return p.name === 'mouth_open'; });
-        if (idxM < 0) idxM = lastIndexWhere(parts, function (p) { return p.name === 'face'; });
-        parts.splice(idxM + 1, 0, mc);
-        synth.mouth = true;
-        warnings.push('缺少 mouth_close，已自动生成通用闭嘴效果');
+        var missingEyes = [];
+        if (!findPart('eye_close_l').length) missingEyes.push(mk(anchors.eyeL, G.eyeL, 'L'));
+        if (!findPart('eye_close_r').length) missingEyes.push(mk(anchors.eyeR, G.eyeR, 'R'));
+        if (missingEyes.length) {
+          var idxE = lastIndexWhere(parts, function (p) { return p.name.indexOf('eyelash') === 0; });
+          if (idxE < 0) idxE = lastIndexWhere(parts, function (p) { return p.name.indexOf('irides') === 0; });
+          if (idxE < 0) idxE = lastIndexWhere(parts, function (p) { return p.name === 'face'; });
+          for (var mi = 0; mi < missingEyes.length; mi++) parts.splice(idxE + 1 + mi, 0, missingEyes[mi]);
+          synth.eye = true;
+          warnings.push(missingEyes.length === 2
+            ? '缺少 eye_close，已自动生成通用闭眼效果'
+            : '闭眼差分仅有一侧，已为缺失侧生成通用闭眼效果');
+        }
       }
     }
-    for (var zi = 0; zi < parts.length; zi++) parts[zi].z = zi;
+    // PSDs from different artists use different list directions. Known semantic depth is the stable
+    // draw-order source; original order remains the tie breaker for layers in the same slot.
+    for (var oi = 0; oi < parts.length; oi++) parts[oi]._order = oi;
+    parts.sort(function (a, b) { return (a.depth - b.depth) || (a._order - b._order); });
+    for (var zi = 0; zi < parts.length; zi++) { parts[zi].z = zi; delete parts[zi]._order; }
 
     return { canvas: { w: W, h: H }, layers: parts, anchors: anchors, warnings: warnings, synth: synth };
   }
@@ -525,13 +572,13 @@
   // and trim to content bbox. Fixes PSDs with low-alpha noise across the canvas.
   function cleanPsdLayers(psd) {
     var stats = { noisy: 0, layers: 0 };
-    var kids = (psd.children || []).filter(function (c) { return c.imageData; });
-    for (var i = 0; i < kids.length; i++) {
-      var c = kids[i], img = c.imageData, W = img.width, H = img.height, d = img.data;
+    var refs = collectLayerRefs(psd.children || [], true, 1, []);
+    for (var i = 0; i < refs.length; i++) {
+      var c = refs[i].layer, img = c.imageData, W = img.width, H = img.height, d = img.data;
       stats.layers++;
       var a = new Uint8Array(W * H), j, before = 0, after = 0;
       for (j = 0; j < W * H; j++) { a[j] = d[j * 4 + 3]; if (a[j]) before++; }
-      cleanAlpha(a, W, H, 40);
+      cleanAlpha(a, W, H, baseName(normName(c.name)) === 'mouth' ? 12 : 40);
       for (j = 0; j < W * H; j++) { if (a[j]) after++; d[j * 4 + 3] = a[j]; }
       if (after < before) stats.noisy++;
       var bb = bboxOf(a, W, H, 0);
