@@ -1,6 +1,6 @@
 [package]
 name = "qcpet"
-version = "0.2.1"
+version = "0.2.2"
 description = "QCpet desktop pet"
 edition = "2021"
 [lib]

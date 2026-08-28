@@ -98,13 +98,24 @@ for (const file of ["manifest.json", ...modelFiles]) {
 if (normalizedText("public/vendor/anime2dr/rigger.js") !== normalizedText("src/vendor/anime2dr/rigger.js")) {
   fail("public 与 src 中的 rigger.js 不一致");
 }
+if (normalizedText("public/vendor/anime2dr/genericparts.js") !== normalizedText("src/vendor/anime2dr/genericparts.js")) {
+  fail("public 与 src 中的 genericparts.js 不一致");
+}
 
-for (const required of ["README.md", "LICENSE", "index.html", "browser.html"]) {
+for (const required of [
+  "README.md",
+  "LICENSE",
+  "index.html",
+  "browser.html",
+  "public/vendor/anime2dr/genericparts.js",
+  "src/vendor/anime2dr/genericparts.js",
+]) {
   try {
     if (!statSync(join(projectRoot, required)).isFile()) fail(`发行所需文件不是普通文件：${required}`);
   } catch {
     fail(`发行所需文件不存在：${required}`);
   }
+  if (!trackedSet.has(required)) fail(`发行所需文件尚未加入 Git：${required}`);
 }
 
 if (failures.length > 0) {

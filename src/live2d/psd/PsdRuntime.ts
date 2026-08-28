@@ -16,10 +16,18 @@ interface RiggerApi {
   baseName(n: string): string;
   cleanPsdLayers(psd: any): { noisy: number; layers: number };
 }
+interface GenericPartsApi {
+  get(k: "eyeL" | "eyeR"): { width: number; height: number; data: Uint8ClampedArray } | null;
+}
 function getRigger(): RiggerApi {
   const r = (window as unknown as { Rigger: RiggerApi }).Rigger;
   if (!r) throw new Error("Rigger 未加载，请检查 index.html 是否正确引入 vendor/anime2dr/rigger.js");
   return r;
+}
+function getGenericParts(): GenericPartsApi {
+  const parts = (window as unknown as { GenericParts: GenericPartsApi }).GenericParts;
+  if (!parts) throw new Error("闭眼回退素材未加载，请检查 genericparts.js");
+  return parts;
 }
 
 export interface RigParams {
@@ -103,34 +111,6 @@ function sh(gl: WebGLRenderingContext, type: number, src: string): WebGLShader {
 }
 
 function smooth(t: number) { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); }
-
-/** 无闭眼差分层时使用的中性闭眼线：左右共用同一几何，避免旧素材的曲率和倾斜不对称。 */
-function makeGenericClosedEye(): { width: number; height: number; data: Uint8ClampedArray } {
-  const width = 128;
-  const height = 16;
-  const data = new Uint8ClampedArray(width * height * 4);
-  const ease = (value: number) => {
-    const t = clamp(value, 0, 1);
-    return t * t * (3 - 2 * t);
-  };
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const u = x / (width - 1);
-      const curveY = 7.2 + 1.6 * Math.pow((u - 0.5) * 2, 2);
-      const taper = ease(u / 0.09) * ease((1 - u) / 0.09);
-      const halfWidth = (1.45 + 0.55 * Math.sin(Math.PI * u)) * taper;
-      const coverage = clamp(halfWidth + 0.75 - Math.abs(y - curveY), 0, 1);
-      const i = (y * width + x) * 4;
-      data[i] = 255;
-      data[i + 1] = 255;
-      data[i + 2] = 255;
-      data[i + 3] = Math.round(255 * coverage * taper);
-    }
-  }
-  return { width, height, data };
-}
-
-const GENERIC_CLOSED_EYE = makeGenericClosedEye();
 
 export class PsdRuntime {
   readonly canvas: HTMLCanvasElement;
@@ -246,10 +226,11 @@ export class PsdRuntime {
 
     const psd = readPsd(u8, { useImageData: true, skipThumbnail: true }) as any;
     const Rigger = getRigger();
+    const GenericParts = getGenericParts();
     Rigger.cleanPsdLayers(psd);
     const g = {
-      eyeL: GENERIC_CLOSED_EYE,
-      eyeR: GENERIC_CLOSED_EYE,
+      eyeL: GenericParts.get("eyeL"),
+      eyeR: GenericParts.get("eyeR"),
     };
     const rig = Rigger.buildRig(psd, { generic: g });
     this._warnings = rig.warnings ?? [];

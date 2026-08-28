@@ -554,8 +554,8 @@
           for (var mi = 0; mi < missingEyes.length; mi++) parts.splice(idxE + 1 + mi, 0, missingEyes[mi]);
           synth.eye = true;
           warnings.push(missingEyes.length === 2
-            ? '缺少 eye_close，已自动生成通用闭眼效果'
-            : '闭眼差分仅有一侧，已为缺失侧生成通用闭眼效果');
+            ? '缺少 eye_close，已使用左右镜像对称的闭眼回退素材'
+            : '闭眼差分仅有一侧，已为缺失侧使用闭眼回退素材');
         }
       }
     }

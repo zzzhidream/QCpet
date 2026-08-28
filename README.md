@@ -10,7 +10,7 @@ QCpet 是一个面向 Windows 的开源 PSD 桌宠，支持 PSD 自动装配、�
 
 ## 下载与运行
 
-1. 从 GitHub Releases 下载 `QCpet-v0.2.1-windows-x64.zip`。
+1. 从 GitHub Releases 下载 `QCpet-v0.2.2-windows-x64.zip`。
 2. 将压缩包完整解压到一个普通文件夹。
 3. 双击 `QCpet.exe`。
 
@@ -66,7 +66,7 @@ QCpet 根据图层名称、层级、像素位置和透明区域自动推断部�
 
 嘴部保持 PSD 中可见嘴图层的静态外观，不自动生成开闭口素材，也不接受音乐、点击、随机表情或 AI 情绪驱动；隐藏的口型差分层不会参与渲染。
 
-自动装配支持嵌套图层组、父级显隐与透明度、左右眼分别切层，并会统一常见的英文、中文和日文部件名称。已识别部件按语义深度排序，避免不同软件导出的相反图层顺序把前发压到脸后；PSD 没有闭眼差分时，会生成左右对称的轻微弧线闭眼效果。
+自动装配支持嵌套图层组、父级显隐与透明度、左右眼分别切层，并会统一常见的英文、中文和日文部件名称。已识别部件按语义深度排序，避免不同软件导出的相反图层顺序把前发压到脸后；PSD 没有闭眼差分时，会保留带睫毛和眼尾细节的闭眼回退素材，并通过镜像保证左右造型对称。
 
 无需 Rust 的浏览器验收：运行 `npm run dev:browser`，访问 `http://127.0.0.1:1421/browser.html` 后切换 Chocola、Vanilla、DeepSeek，或直接选择本地 PSD。该页面复用正式 PSD 装配和 WebGL 渲染链路，但不提供桌宠窗口、系统托盘等 Tauri 功能。
 
@@ -101,7 +101,7 @@ cargo test --manifest-path src-tauri/Cargo.toml
 npm run package:portable
 ```
 
-产物会写入 `release/QCpet-v0.2.1-windows-x64.zip`。推送与项目版本一致的 `v*` 标签时，`.github/workflows/release.yml` 会在 GitHub Actions 中构建同样的 Windows 便携包，完成内容自检后附加到 Release。
+产物会写入 `release/QCpet-v0.2.2-windows-x64.zip`。推送与项目版本一致的 `v*` 标签时，`.github/workflows/release.yml` 会在 GitHub Actions 中构建同样的 Windows 便携包，完成内容自检后附加到 Release。
 
 
 ## 开源与资源说明
