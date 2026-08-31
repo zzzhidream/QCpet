@@ -4,13 +4,19 @@
 
 <h1 align="center">QCpet</h1>
 
+<p align="center">
+  <a href="https://github.com/zzzhidream/QCpet/actions/workflows/release.yml"><img alt="Windows Release" src="https://github.com/zzzhidream/QCpet/actions/workflows/release.yml/badge.svg" /></a>
+  <a href="https://github.com/zzzhidream/QCpet/releases/latest"><img alt="Latest Release" src="https://img.shields.io/github/v/release/zzzhidream/QCpet" /></a>
+  <a href="LICENSE"><img alt="License MIT" src="https://img.shields.io/badge/license-MIT-green.svg" /></a>
+</p>
+
 QCpet 是一个面向 Windows 的开源 PSD 桌宠，支持 PSD 自动装配、桌面交互和可选的文字 AI 对话。  
-它是基于petra修改的，进行了增删优化，最初完全出于自用的目的，所以表现很可能不如petra好。原应用在：[https://github.com/Wumiu/Petra] 在这里感谢Wumiu大佬。
+它基于 [Petra](https://github.com/Wumiu/Petra) 修改并进行了增删优化，最初出于自用目的开发；感谢原作者 Wumiu。
 
 
 ## 下载与运行
 
-1. 从 GitHub Releases 下载 `QCpet-v0.2.2-windows-x64.zip`。
+1. 从 [GitHub Releases](https://github.com/zzzhidream/QCpet/releases/latest) 下载 `QCpet-v0.2.3-windows-x64.zip`。
 2. 将压缩包完整解压到一个普通文件夹。
 3. 双击 `QCpet.exe`。
 
@@ -29,10 +35,11 @@ QCpet 是一个面向 Windows 的开源 PSD 桌宠，支持 PSD 自动装配、�
 
 ## 怎么添加喜欢的模型？
 
-- 1.叫ai生成一个正面q版立绘
-- 2.把这个立绘丢到：[https://modelscope.cn/studios/ljsabc/See-Through] —— 一个自动拆层工具，免费的，建议拉满分辨率，种子随便 —— 得到psd文件
-- 3.然后直接把这个psd文件丢到QCpet的模型设置里就好啦！
-- tips：如果发现导入后有问题，可以尝试减少饰品、尽量脸部对称
+1. 让 AI 生成一张正面 Q 版立绘。
+2. 使用 [See-Through 自动拆层工具](https://modelscope.cn/studios/ljsabc/See-Through) 得到 PSD；建议使用较高分辨率。
+3. 在 QCpet 的「模型设置」中导入 PSD。
+
+如果导入后效果不理想，可以尝试减少饰品、保持脸部正面且尽量对称，并使用语义清晰的图层名称。
 
 
 ## AI 对话与情绪
@@ -68,7 +75,7 @@ QCpet 根据图层名称、层级、像素位置和透明区域自动推断部�
 
 自动装配支持嵌套图层组、父级显隐与透明度、左右眼分别切层，并会统一常见的英文、中文和日文部件名称。已识别部件按语义深度排序，避免不同软件导出的相反图层顺序把前发压到脸后；PSD 没有闭眼差分时，会保留带睫毛和眼尾细节的闭眼回退素材，并通过镜像保证左右造型对称。
 
-无需 Rust 的浏览器验收：运行 `npm run dev:browser`，访问 `http://127.0.0.1:1421/browser.html` 后切换 Chocola、Vanilla、DeepSeek，或直接选择本地 PSD。该页面复用正式 PSD 装配和 WebGL 渲染链路，但不提供桌宠窗口、系统托盘等 Tauri 功能。
+无需 Rust 的浏览器验收：在 Windows 双击 `浏览器验收.bat`，或运行 `npm run dev:browser`。服务从 `http://127.0.0.1:1421/browser.html` 开始，端口被占用时会自动顺延并打开实际地址。页面可以切换 Chocola、Vanilla、DeepSeek，或直接选择本地 PSD，并提供固定睁眼、双眼闭合和左右单眼闭合状态。该页面复用正式 PSD 装配和 WebGL 渲染链路，但不提供桌宠窗口、系统托盘等 Tauri 功能。
 
 通用情绪和点头动作只依赖自动识别出的基础面部部件，因此可用于后续导入模型；不同画师的切层方式差异很大，自动装配不能保证每个 PSD 都达到同样效果。公开版本不包含按文件名识别的私有模型特化，所有外部 PSD 都走相同的通用装配路径。
 
@@ -101,7 +108,7 @@ cargo test --manifest-path src-tauri/Cargo.toml
 npm run package:portable
 ```
 
-产物会写入 `release/QCpet-v0.2.2-windows-x64.zip`。推送与项目版本一致的 `v*` 标签时，`.github/workflows/release.yml` 会在 GitHub Actions 中构建同样的 Windows 便携包，完成内容自检后附加到 Release。
+产物会写入 `release/QCpet-v0.2.3-windows-x64.zip`。推送与项目版本一致的 `v*` 标签时，`.github/workflows/release.yml` 会在 GitHub Actions 中构建同样的 Windows 便携包，完成内容自检后附加到 Release。
 
 
 ## 开源与资源说明

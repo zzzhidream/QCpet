@@ -68,6 +68,39 @@ select { min-width: 150px; padding: 8px 10px; }
 button, .file-button { padding: 9px 13px; }
 .file-button input { display: none; }
 
+.eye-review {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0;
+  padding: 3px;
+  border: 1px solid rgba(103, 72, 117, 0.2);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.eye-review legend {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.eye-review button {
+  border: 0;
+  padding: 6px 9px;
+  background: transparent;
+  font-size: 12px;
+}
+
+.eye-review button.active {
+  background: #d586aa;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(148, 75, 112, 0.24);
+}
+
 .viewer-card {
   position: relative;
   min-height: min(74vh, 820px);

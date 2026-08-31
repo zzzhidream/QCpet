@@ -12,6 +12,7 @@ const builtinSelect = document.getElementById("builtin-model") as HTMLSelectElem
 const loadBuiltinButton = document.getElementById("load-builtin") as HTMLButtonElement;
 const localInput = document.getElementById("local-psd") as HTMLInputElement;
 const toggleMotionButton = document.getElementById("toggle-motion") as HTMLButtonElement;
+const eyeReviewButtons = Array.from(document.querySelectorAll<HTMLButtonElement>("[data-eye-review]"));
 const loading = document.getElementById("loading") as HTMLElement;
 const modelName = document.getElementById("model-name") as HTMLElement;
 const modelStats = document.getElementById("model-stats") as HTMLElement;
@@ -20,6 +21,8 @@ const modelWarnings = document.getElementById("model-warnings") as HTMLUListElem
 
 let view: Rigged2DView | null = null;
 let motionEnabled = true;
+type EyeReviewMode = "auto" | "open" | "closed" | "left-closed" | "right-closed";
+let eyeReviewMode: EyeReviewMode = "auto";
 let lastFrame = performance.now();
 let lastPointer = { x: 0, y: 0, at: performance.now() };
 const driver: PetDriver = idleDriver();
@@ -55,6 +58,7 @@ async function displayPsd(name: string, bytes: Uint8Array) {
   const next = await Rigged2DView.create(bytes);
   next.setScale(900);
   next.setSwayEnabled(false);
+  next.setEyeReviewMode(eyeReviewMode);
   next.attachTo(stage, null as never);
   next.update(driver, 1 / 60);
 
@@ -62,7 +66,10 @@ async function displayPsd(name: string, bytes: Uint8Array) {
 
   modelName.textContent = name;
   modelStats.textContent = next.stats;
-  modelStatus.textContent = "加载成功；嘴部应保持 PSD 可见图层的静态形状";
+  const usesFallbackEyes = next.warnings.some((warning) => warning.includes("闭眼回退素材"));
+  modelStatus.textContent = usesFallbackEyes
+    ? "加载成功；当前使用左右镜像的闭眼回退素材，可用眼睛验收按钮固定观察"
+    : "加载成功；检测到 PSD 闭眼素材，可用眼睛验收按钮固定观察";
   showWarnings(next.warnings);
   hideLoading();
 }
@@ -128,6 +135,33 @@ toggleMotionButton.addEventListener("click", () => {
     : "动作已暂停；可与 PSD 原图逐像素观察";
 });
 
+function selectEyeReviewMode(mode: EyeReviewMode) {
+  eyeReviewMode = mode;
+  for (const button of eyeReviewButtons) {
+    const selected = button.dataset.eyeReview === mode;
+    button.classList.toggle("active", selected);
+    button.setAttribute("aria-pressed", String(selected));
+  }
+  if (!view) return;
+  view.setEyeReviewMode(mode);
+  // 暂停状态下也立即推进到目标眼型，避免按钮点了但画面不变化。
+  if (!motionEnabled) {
+    for (let i = 0; i < 24; i++) view.update(driver, 1 / 60);
+  }
+  const labels: Record<EyeReviewMode, string> = {
+    auto: "已恢复自动眨眼",
+    open: "已固定睁眼，可对照 PSD 原始睁眼图层",
+    closed: "已固定双眼闭合，可检查左右对称与整体位置",
+    "left-closed": "已固定左眼闭合，可单独检查左眼",
+    "right-closed": "已固定右眼闭合，可单独检查右眼",
+  };
+  modelStatus.textContent = labels[mode];
+}
+
+for (const button of eyeReviewButtons) {
+  button.addEventListener("click", () => selectEyeReviewMode(button.dataset.eyeReview as EyeReviewMode));
+}
+
 stage.addEventListener("pointermove", (event) => {
   const rect = stage.getBoundingClientRect();
   const now = performance.now();
@@ -143,9 +177,11 @@ stage.addEventListener("pointermove", (event) => {
 function animate(now: number) {
   const dt = Math.min(0.05, Math.max(0, (now - lastFrame) / 1000));
   lastFrame = now;
-  if (view && motionEnabled) {
-    driver.breathing = (driver.breathing + dt * 1.6) % (Math.PI * 2);
-    driver.cursorSpeed *= Math.exp(-dt * 7);
+  if (view && (motionEnabled || eyeReviewMode !== "auto")) {
+    if (motionEnabled) {
+      driver.breathing = (driver.breathing + dt * 1.6) % (Math.PI * 2);
+      driver.cursorSpeed *= Math.exp(-dt * 7);
+    }
     view.update(driver, dt);
   }
   requestAnimationFrame(animate);

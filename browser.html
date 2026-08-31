@@ -27,6 +27,14 @@
             <input id="local-psd" type="file" accept=".psd,image/vnd.adobe.photoshop" />
           </label>
           <button id="toggle-motion" type="button">暂停动作</button>
+          <fieldset class="eye-review" aria-label="闭眼素材验收">
+            <legend>眼睛验收</legend>
+            <button type="button" data-eye-review="auto" class="active">自动</button>
+            <button type="button" data-eye-review="open">睁眼</button>
+            <button type="button" data-eye-review="closed">双眼闭合</button>
+            <button type="button" data-eye-review="left-closed">左眼闭合</button>
+            <button type="button" data-eye-review="right-closed">右眼闭合</button>
+          </fieldset>
         </div>
       </header>
 

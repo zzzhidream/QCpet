@@ -52,10 +52,10 @@ if (new Set(modelFiles).size !== modelFiles.length) fail("模型清单包含重�
 
 const forbiddenModelPattern = /(chisa|mika)/i;
 let trackedFiles = [];
-const gitFiles = spawnSync("git", ["ls-files"], { cwd: projectRoot, encoding: "utf8" });
+const gitFiles = spawnSync("git", ["ls-files", "-z"], { cwd: projectRoot, encoding: "utf8" });
 if (gitFiles.status === 0 && gitFiles.stdout) {
   trackedFiles = gitFiles.stdout
-    .split(/\r?\n/)
+    .split("\0")
     .filter(Boolean);
 } else {
   fail("无法读取 Git 跟踪文件列表");
@@ -107,6 +107,7 @@ for (const required of [
   "LICENSE",
   "index.html",
   "browser.html",
+  "浏览器验收.bat",
   "public/vendor/anime2dr/genericparts.js",
   "src/vendor/anime2dr/genericparts.js",
 ]) {
@@ -116,6 +117,15 @@ for (const required of [
     fail(`发行所需文件不存在：${required}`);
   }
   if (!trackedSet.has(required)) fail(`发行所需文件尚未加入 Git：${required}`);
+}
+
+const browserScript = packageJson.scripts?.["dev:browser"] ?? "";
+if (!browserScript.includes("--strictPort false")) {
+  fail("dev:browser 必须允许端口占用时自动顺延");
+}
+const browserBatch = normalizedText("浏览器验收.bat");
+if (!browserBatch.includes("rollup-win32-") || !browserBatch.includes("@esbuild\\win32-")) {
+  fail("浏览器验收.bat 缺少 Windows Rollup/Esbuild 组件检查");
 }
 
 if (failures.length > 0) {

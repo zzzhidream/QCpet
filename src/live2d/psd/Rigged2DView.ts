@@ -71,6 +71,7 @@ export class Rigged2DView implements PetView {
   private musicWinkSide: "L" | "R" = "L";
 
   private dragSquint = 0; // 拖拽眯眼（0=睁眼，1=眯眼）
+  private eyeReviewMode: "auto" | "open" | "closed" | "left-closed" | "right-closed" = "auto";
 
   private fastCursorHairGuard = 0;
   private userGazeWeight = 0;
@@ -373,12 +374,19 @@ export class Rigged2DView implements PetView {
       }
     }
 
+    // 浏览器验收专用的确定性眼睛状态。默认 auto 时完全不参与桌宠运行。
+    if (this.eyeReviewMode !== "auto") {
+      o.eyeOpenL = this.eyeReviewMode === "closed" || this.eyeReviewMode === "left-closed" ? 0 : 1;
+      o.eyeOpenR = this.eyeReviewMode === "closed" || this.eyeReviewMode === "right-closed" ? 0 : 1;
+    }
+
     if (!this.action) {
+      const reviewingEyes = this.eyeReviewMode !== "auto";
       // 惊讶时保持睁眼；进入状态还会取消正在进行的眨眼，避免表情被随机眨眼遮住。
-      this.runtime.autoBlinkOn = surprisedW < 0.25 && disgustRollAmount < 0.12;
-      this.runtime.autoRandOn = true;
-      this.runtime.autoIdleOn = true;
-      this.runtime.randomGazeWeight = 1 - clamp(Math.max(gazeW, avoidGazeW), 0, 1);
+      this.runtime.autoBlinkOn = !reviewingEyes && surprisedW < 0.25 && disgustRollAmount < 0.12;
+      this.runtime.autoRandOn = !reviewingEyes;
+      this.runtime.autoIdleOn = !reviewingEyes;
+      this.runtime.randomGazeWeight = reviewingEyes ? 0 : 1 - clamp(Math.max(gazeW, avoidGazeW), 0, 1);
     }
     this.runtime.update(dt, o);
 
@@ -424,6 +432,18 @@ export class Rigged2DView implements PetView {
     this.actionT = 0;
     this.actionLoop = false;
     this.setAuto(true);
+  }
+
+  /** 浏览器验收使用；auto 之外的状态固定眼睛并关闭随机眨眼/待机干扰。 */
+  setEyeReviewMode(mode: "auto" | "open" | "closed" | "left-closed" | "right-closed") {
+    this.eyeReviewMode = mode;
+    if (mode === "auto") this.setAuto(true);
+    else {
+      this.action = null;
+      this.actionT = 0;
+      this.actionLoop = false;
+      this.setAuto(false);
+    }
   }
 
   /** 动作独占开关：统一管理自动眨眼/随机微动/待机晃动 */
